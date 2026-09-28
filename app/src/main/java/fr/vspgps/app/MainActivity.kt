@@ -279,6 +279,10 @@ fun MapSearchScreen(
         mutableStateOf(0)
     }
 
+    var navigationStarted by remember {
+        mutableStateOf(false)
+    }
+
     val routePoints =
         routeOptions.getOrNull(selectedRouteIndex)?.points ?: emptyList()
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -680,9 +684,10 @@ fun MapSearchScreen(
                             val startMarker = Marker(map).apply {
                                 position = GeoPoint(location.latitude, location.longitude)
                                 title = "Ma position"
+                                icon = ContextCompat.getDrawable(ctx, android.R.drawable.presence_online)
                                 setAnchor(
                                     Marker.ANCHOR_CENTER,
-                                    Marker.ANCHOR_BOTTOM
+                                    Marker.ANCHOR_CENTER
                                 )
                             }
                             map.overlays.add(startMarker)
@@ -734,6 +739,24 @@ fun MapSearchScreen(
         Spacer(
             Modifier.height(8.dp)
         )
+
+        if (routeOptions.isNotEmpty()) {
+            Button(
+                onClick = { navigationStarted = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text(
+                    text = if (navigationStarted) "Navigation prête ✓" else "▶  Démarrer",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+        }
 
         Text(
             text =
