@@ -673,7 +673,19 @@ fun MapSearchScreen(
                     destination?.let { d ->
 
                         map.overlays.removeAll {
-                            it is Marker
+                            it is Marker || it is Polyline
+                        }
+
+                        currentLocation?.let { location ->
+                            val startMarker = Marker(map).apply {
+                                position = GeoPoint(location.latitude, location.longitude)
+                                title = "Ma position"
+                                setAnchor(
+                                    Marker.ANCHOR_CENTER,
+                                    Marker.ANCHOR_BOTTOM
+                                )
+                            }
+                            map.overlays.add(startMarker)
                         }
 
                         val marker =
@@ -705,13 +717,13 @@ fun MapSearchScreen(
                             marker
                         )
 
-                        map.controller.animateTo(
-                            d.point
-                        )
-
-                        map.controller.setZoom(
-                            16.0
-                        )
+                        if (routePoints.isNotEmpty()) {
+                            val bounds = org.osmdroid.util.BoundingBox.fromGeoPoints(routePoints)
+                            map.zoomToBoundingBox(bounds, true, 80)
+                        } else {
+                            map.controller.animateTo(d.point)
+                            map.controller.setZoom(16.0)
+                        }
 
                         map.invalidate()
                     }
