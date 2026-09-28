@@ -2,8 +2,12 @@ package fr.vspgps.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
 import android.location.Geocoder
 import android.os.Bundle
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -31,8 +35,11 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import java.util.Locale
-
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 enum class VehicleType {
     VSP,
     SCOOTER_50
@@ -90,135 +97,136 @@ fun WelcomeScreen(
     onVehicle: (VehicleType) -> Unit,
     onStart: () -> Unit
 ) {
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF07182E))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-
-        Spacer(Modifier.height(34.dp))
-
-        Text(
-            text = "VSP GPS",
-            color = Color.White,
-            fontSize = 38.sp,
-            fontWeight = FontWeight.Bold
+        // Image de fond
+        Image(
+            painter = painterResource(id = R.drawable.vsp_home),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
 
-        Text(
-            text = "Le GPS pensé pour votre mobilité",
-            color = Color(0xFF9CCBFF),
-            fontSize = 17.sp
-        )
-
-        Spacer(Modifier.height(36.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF102A46)
-            )
-        ) {
-
-            Column(
-                modifier = Modifier.padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-
-                Text(
-                    text = "🚗     🛵",
-                    fontSize = 64.sp
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = "Des itinéraires adaptés",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "Voiture sans permis • Cyclomoteur 50 cm³",
-                    color = Color(0xFFC4D9ED),
-                    fontSize = 15.sp
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                Text(
-                    text = "⌁  Votre route, sans les voies incompatibles",
-                    color = Color(0xFF75B8FF)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(28.dp))
-
-        Text(
-            text = "Choisissez votre véhicule",
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            FilterChip(
-                selected = vehicle == VehicleType.VSP,
-                onClick = {
-                    onVehicle(VehicleType.VSP)
-                },
-                label = {
-                    Text("🚗  VSP")
-                }
-            )
-
-            FilterChip(
-                selected = vehicle == VehicleType.SCOOTER_50,
-                onClick = {
-                    onVehicle(VehicleType.SCOOTER_50)
-                },
-                label = {
-                    Text("🛵  50 cm³")
-                }
-            )
-        }
-
-        Spacer(Modifier.weight(1f))
-
-        Button(
-            onClick = onStart,
+        // Voile sombre léger pour garder les textes lisibles
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp),
-            shape = RoundedCornerShape(18.dp)
+                .fillMaxSize()
+                .background(Color(0x6603152B))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 34.dp, bottom = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
             Text(
-                text = "Où allez-vous ?  →",
+                text = "VSP GPS",
+                color = Color.White,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = "Le GPS pensé pour votre mobilité",
+                color = Color(0xFFB9D9FF),
+                fontSize = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xCC082744)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Text(
+                        text = "Où allez-vous ?",
+                        color = Color.White,
+                        fontSize = 27.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Trouvez votre destination et prenez la route.",
+                        color = Color(0xFFD2E6FA),
+                        fontSize = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(58.dp),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Text(
+                            text = "Rechercher une destination  →",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Espace laissant apparaître la voiture et le scooter
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = "Choisissez votre véhicule",
+                color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { onVehicle(VehicleType.VSP) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(
+                        text = "🚗  VSP",
+                        fontSize = 16.sp
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = { onVehicle(VehicleType.SCOOTER_50) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(54.dp),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(
+                        text = "🛵  50 cm³",
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                }
+            }
         }
-
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            text = "V200-alpha.2 • Prototype de test",
-            color = Color(0xFF71869C),
-            fontSize = 12.sp
-        )
     }
 }
-
 @Composable
 fun MapSearchScreen(
     vehicle: VehicleType,
@@ -250,20 +258,28 @@ fun MapSearchScreen(
         mutableStateOf(false)
     }
 
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
+    var currentLocation by remember {
+        mutableStateOf<Location?>(null)
+    }
 
+    val startPoint = currentLocation?.let {
+        GeoPoint(it.latitude, it.longitude)
+    }
+    var routePoints by remember {
+        mutableStateOf<List<GeoPoint>>(emptyList())
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions: Map<String, Boolean> ->
             locationGranted =
-                permissions[
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ] == true ||
-                permissions[
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ] == true
+                permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         }
+    )
 
+    val locationManager = context.getSystemService(
+        android.content.Context.LOCATION_SERVICE
+    ) as android.location.LocationManager
     LaunchedEffect(Unit) {
 
         locationGranted =
@@ -285,8 +301,69 @@ fun MapSearchScreen(
                 )
             )
         }
+        if (locationGranted) {
+            try {
+                currentLocation =
+                    locationManager.getLastKnownLocation(
+                        android.location.LocationManager.GPS_PROVIDER
+                    )
+                        ?: locationManager.getLastKnownLocation(
+                            android.location.LocationManager.NETWORK_PROVIDER
+                        )
+            } catch (e: SecurityException) {
+                currentLocation = null
+            }
+        }
     }
+    fun calculateRoute(
+        start: GeoPoint,
+        end: GeoPoint
+    ) {
+        scope.launch {
+            val url =
+                "https://router.project-osrm.org/route/v1/driving/" +
+                        "${start.longitude},${start.latitude};" +
+                        "${end.longitude},${end.latitude}" +
+                        "?overview=full&geometries=geojson"
+            val request = Request.Builder()
+                .url(url)
+                .build()
 
+            val client = OkHttpClient()
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
+
+            val body = response.body?.string()
+
+            if (body != null) {
+                val json = JSONObject(body)
+                val routes = json.getJSONArray("routes")
+
+                if (routes.length() > 0) {
+                    val geometry = routes
+                        .getJSONObject(0)
+                        .getJSONObject("geometry")
+
+                    val coordinates = geometry.getJSONArray("coordinates")
+                    val points = mutableListOf<GeoPoint>()
+
+                    for (i in 0 until coordinates.length()) {
+                        val coordinate = coordinates.getJSONArray(i)
+
+                        val longitude = coordinate.getDouble(0)
+                        val latitude = coordinate.getDouble(1)
+
+                        points.add(
+                            GeoPoint(latitude, longitude)
+                        )
+                    }
+
+                    routePoints = points
+                }
+            }
+        }
+    }
     fun searchAddress() {
 
         if (query.isBlank() || searching) {
@@ -345,6 +422,14 @@ fun MapSearchScreen(
                 }
 
             destination = result
+            currentLocation?.let { location ->
+                result?.let { dest ->
+                    calculateRoute(
+                        GeoPoint(location.latitude, location.longitude),
+                        dest.point
+                    )
+                }
+            }
 
             if (result == null) {
                 error =
@@ -541,6 +626,16 @@ fun MapSearchScreen(
                                 )
                             }
 
+                        if (routePoints.isNotEmpty()) {
+                            val routeLine = Polyline().apply {
+                                setPoints(routePoints)
+                                outlinePaint.strokeWidth = 10f
+                                outlinePaint.color = android.graphics.Color.BLUE
+                            }
+
+                            map.overlays.add(routeLine)
+                            map.invalidate()
+                        }
                         map.overlays.add(
                             marker
                         )
