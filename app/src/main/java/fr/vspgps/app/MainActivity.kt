@@ -50,6 +50,12 @@ data class Destination(
     val point: GeoPoint
 )
 
+data class RouteOption(
+    val points: List<GeoPoint>,
+    val distanceMeters: Double,
+    val durationSeconds: Double
+)
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -265,9 +271,16 @@ fun MapSearchScreen(
     val startPoint = currentLocation?.let {
         GeoPoint(it.latitude, it.longitude)
     }
-    var routePoints by remember {
-        mutableStateOf<List<GeoPoint>>(emptyList())
+    var routeOptions by remember {
+        mutableStateOf<List<RouteOption>>(emptyList())
     }
+
+    var selectedRouteIndex by remember {
+        mutableStateOf(0)
+    }
+
+    val routePoints =
+        routeOptions.getOrNull(selectedRouteIndex)?.points ?: emptyList()
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { permissions: Map<String, Boolean> ->
@@ -347,28 +360,35 @@ fun MapSearchScreen(
             if (body != null) {
                 val json = JSONObject(body)
                 val routes = json.getJSONArray("routes")
+                val parsedRoutes = mutableListOf<RouteOption>()
 
-                if (routes.length() > 0) {
-                    val geometry = routes
-                        .getJSONObject(0)
-                        .getJSONObject("geometry")
-
+                for (routeIndex in 0 until routes.length()) {
+                    val route = routes.getJSONObject(routeIndex)
+                    val geometry = route.getJSONObject("geometry")
                     val coordinates = geometry.getJSONArray("coordinates")
                     val points = mutableListOf<GeoPoint>()
 
                     for (i in 0 until coordinates.length()) {
                         val coordinate = coordinates.getJSONArray(i)
-
-                        val longitude = coordinate.getDouble(0)
-                        val latitude = coordinate.getDouble(1)
-
                         points.add(
-                            GeoPoint(latitude, longitude)
+                            GeoPoint(
+                                coordinate.getDouble(1),
+                                coordinate.getDouble(0)
+                            )
                         )
                     }
 
-                    routePoints = points
+                    parsedRoutes.add(
+                        RouteOption(
+                            points = points,
+                            distanceMeters = route.optDouble("distance", 0.0),
+                            durationSeconds = route.optDouble("duration", 0.0)
+                        )
+                    )
                 }
+
+                routeOptions = parsedRoutes
+                selectedRouteIndex = 0
             }
         }
     }
@@ -580,6 +600,43 @@ fun MapSearchScreen(
                         vertical = 6.dp
                     )
             )
+        }
+
+        if (routeOptions.size > 1) {
+            Text(
+                text = "Itinéraires proposés",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                routeOptions.take(3).forEachIndexed { index, option ->
+                    val km = option.distanceMeters / 1000.0
+                    val minutes = (option.durationSeconds / 60.0).toInt()
+
+                    if (index == selectedRouteIndex) {
+                        Button(
+                            onClick = { selectedRouteIndex = index },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(String.format(Locale.FRANCE, "%.1f km\n%d min", km, minutes))
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { selectedRouteIndex = index },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(String.format(Locale.FRANCE, "%.1f km\n%d min", km, minutes))
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
         }
 
         Card(
