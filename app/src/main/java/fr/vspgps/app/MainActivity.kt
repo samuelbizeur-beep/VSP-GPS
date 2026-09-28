@@ -3,6 +3,7 @@ package fr.vspgps.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.location.LocationManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -250,6 +252,54 @@ fun MapSearchScreen(
         mutableStateOf(false)
     }
 
+    var currentLocation by remember {
+        mutableStateOf<GeoPoint?>(null)
+    }
+
+    fun loadCurrentLocation() {
+        if (!locationGranted) return
+
+        val locationManager =
+            context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
+
+        val providers =
+            listOf(
+                LocationManager.GPS_PROVIDER,
+                LocationManager.NETWORK_PROVIDER
+            )
+
+        val bestLocation =
+            providers
+                .filter { provider ->
+                    runCatching {
+                        LocationManagerCompat.isLocationEnabled(locationManager) &&
+                            locationManager.isProviderEnabled(provider)
+                    }.getOrDefault(false)
+                }
+                .mapNotNull { provider ->
+                    runCatching {
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED ||
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+                    }.takeIf { it.getOrDefault(false) }
+                        ?.let {
+                            runCatching {
+                                locationManager.getLastKnownLocation(provider)
+                            }.getOrNull()
+                        }
+                }
+                .maxByOrNull { it.time }
+
+        bestLocation?.let {
+            currentLocation = GeoPoint(it.latitude, it.longitude)
+        }
+    }
+
     val permissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -262,6 +312,10 @@ fun MapSearchScreen(
                 permissions[
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 ] == true
+
+            if (locationGranted) {
+                loadCurrentLocation()
+            }
         }
 
     LaunchedEffect(Unit) {
@@ -276,7 +330,9 @@ fun MapSearchScreen(
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
 
-        if (!locationGranted) {
+        if (locationGranted) {
+            loadCurrentLocation()
+        } else {
 
             permissionLauncher.launch(
                 arrayOf(
@@ -510,7 +566,7 @@ fun MapSearchScreen(
                         )
 
                         controller.setCenter(
-                            GeoPoint(
+                            currentLocation ?: GeoPoint(
                                 50.425,
                                 2.710
                             )
@@ -519,6 +575,13 @@ fun MapSearchScreen(
                 },
 
                 update = { map ->
+
+                    if (destination == null) {
+                        currentLocation?.let { position ->
+                            map.controller.animateTo(position)
+                            map.controller.setZoom(16.0)
+                        }
+                    }
 
                     destination?.let { d ->
 
