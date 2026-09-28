@@ -472,6 +472,11 @@ fun MapSearchScreen(
         }
     }
 
+    if (navigationStarted && destination != null && routePoints.isNotEmpty()) {
+        NavigationScreen(vehicle, destination!!, currentLocation, routeOptions[selectedRouteIndex]) { navigationStarted = false }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -785,5 +790,76 @@ fun MapSearchScreen(
             fontSize =
                 12.sp
         )
+    }
+}
+
+
+@Composable
+fun NavigationScreen(
+    vehicle: VehicleType,
+    destination: Destination,
+    currentLocation: Location?,
+    route: RouteOption,
+    onBack: () -> Unit
+) {
+    val distanceKm = route.distanceMeters / 1000.0
+    val minutes = (route.durationSeconds / 60.0).toInt()
+    Column(Modifier.fillMaxSize().background(Color(0xFF07182E)).padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("‹ Itinéraire") }
+            Spacer(Modifier.weight(1f))
+            Text(if (vehicle == VehicleType.VSP) "🚗 VSP" else "🛵 50 cm³", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF102A46))
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Navigation en cours", color = Color(0xFF65D68A), fontWeight = FontWeight.Bold)
+                Text(destination.label, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(String.format(Locale.FRANCE, "%.1f km  •  %d min", distanceKm, minutes), color = Color(0xFFB9D9FF))
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(22.dp)) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx -> MapView(ctx).apply { setMultiTouchControls(true); controller.setZoom(17.0) } },
+                update = { map ->
+                    map.overlays.removeAll { it is Marker || it is Polyline }
+                    map.overlays.add(Polyline().apply {
+                        setPoints(route.points)
+                        outlinePaint.strokeWidth = 12f
+                        outlinePaint.color = android.graphics.Color.BLUE
+                    })
+                    val position = currentLocation?.let { GeoPoint(it.latitude, it.longitude) } ?: route.points.firstOrNull()
+                    position?.let { point ->
+                        map.overlays.add(Marker(map).apply {
+                            this.position = point
+                            title = "Ma position"
+                            icon = ContextCompat.getDrawable(map.context, android.R.drawable.presence_online)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        })
+                        map.controller.setCenter(point)
+                        map.controller.setZoom(17.0)
+                    }
+                    map.overlays.add(Marker(map).apply {
+                        position = destination.point
+                        title = destination.label
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    })
+                    map.invalidate()
+                }
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF102A46))
+        ) {
+            Text("Suivez le tracé bleu vers " + destination.label, Modifier.padding(16.dp), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
