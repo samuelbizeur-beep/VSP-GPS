@@ -8,6 +8,7 @@ import android.location.LocationManager
 import android.content.Context
 import android.location.Geocoder
 import android.os.Bundle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
