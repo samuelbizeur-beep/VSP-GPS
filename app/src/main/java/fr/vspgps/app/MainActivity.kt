@@ -3,6 +3,9 @@ package fr.vspgps.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.content.Context
 import android.location.Geocoder
 import android.os.Bundle
 import androidx.compose.foundation.Image
@@ -804,6 +807,46 @@ fun NavigationScreen(
 ) {
     val distanceKm = route.distanceMeters / 1000.0
     val minutes = (route.durationSeconds / 60.0).toInt()
+    var liveLocation by remember { mutableStateOf(currentLocation) }
+    val context = LocalContext.current
+
+    DisposableEffect(Unit) {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                liveLocation = location
+            }
+        }
+
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (fineGranted || coarseGranted) {
+            try {
+                locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    1000L,
+                    2f,
+                    listener
+                )
+            } catch (_: Exception) {
+            }
+        }
+
+        onDispose {
+            try {
+                locationManager.removeUpdates(listener)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     Column(Modifier.fillMaxSize().background(Color(0xFF07182E)).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("‹ Itinéraire") }
@@ -833,7 +876,7 @@ fun NavigationScreen(
                         outlinePaint.strokeWidth = 12f
                         outlinePaint.color = android.graphics.Color.BLUE
                     })
-                    val position = currentLocation?.let { GeoPoint(it.latitude, it.longitude) } ?: route.points.firstOrNull()
+                    val position = liveLocation?.let { GeoPoint(it.latitude, it.longitude) } ?: route.points.firstOrNull()
                     position?.let { point ->
                         map.overlays.add(Marker(map).apply {
                             this.position = point
