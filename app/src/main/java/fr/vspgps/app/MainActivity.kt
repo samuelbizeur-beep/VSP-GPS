@@ -320,11 +320,19 @@ fun MapSearchScreen(
         end: GeoPoint
     ) {
         scope.launch {
+            // Étape transitoire : le serveur public OSRM ne propose qu'un profil
+            // routier générique. Le véhicule est néanmoins transmis à cette
+            // fonction pour préparer le futur moteur spécialisé VSP / 50 cm³.
+            val routeProfile = when (vehicle) {
+                VehicleType.VSP -> "driving"
+                VehicleType.SCOOTER_50 -> "driving"
+            }
+
             val url =
-                "https://router.project-osrm.org/route/v1/driving/" +
+                "https://router.project-osrm.org/route/v1/$routeProfile/" +
                         "${start.longitude},${start.latitude};" +
                         "${end.longitude},${end.latitude}" +
-                        "?overview=full&geometries=geojson"
+                        "?overview=full&geometries=geojson&alternatives=true"
             val request = Request.Builder()
                 .url(url)
                 .build()
@@ -674,7 +682,10 @@ fun MapSearchScreen(
 
         Text(
             text =
-                "Le calcul d’itinéraire spécialisé VSP/50 cm³ sera ajouté à l’étape suivante.",
+                if (vehicle == VehicleType.VSP)
+                    "Mode VSP : itinéraire de démonstration. Le filtrage des routes interdites sera activé avec le moteur VSP dédié."
+                else
+                    "Mode 50 cm³ : itinéraire de démonstration. Le filtrage des routes interdites sera activé avec le moteur 50 cm³ dédié.",
 
             color =
                 Color(0xFF9CB0C4),
