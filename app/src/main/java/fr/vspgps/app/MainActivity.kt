@@ -845,7 +845,7 @@ fun NavigationScreen(
                         map.controller.setZoom(17.0)
                     }
                     map.overlays.add(Marker(map).apply {
-                        position = destination.point
+                        this.position = destination.point
                         title = destination.label
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     })
