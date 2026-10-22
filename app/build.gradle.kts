@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "fr.vspgps.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "fr.vspgps.app"
@@ -38,6 +38,9 @@ android {
 }
 
 dependencies {
+    implementation("io.github.rallista:valhalla-mobile:0.6.4")
+    implementation("io.github.rallista:valhalla-models:0.5.2")
+    implementation("io.github.rallista:valhalla-models-config:0.5.2")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.compose.material3:material3")
