@@ -41,6 +41,9 @@ jobs:
       - name: Apply V146 hybrid OSM and IGN validation patch
         run: python3 tools/patch_v146_roundabout_physical_exits.py
 
+      - name: Inspect V146 roundabout correction flow
+        run: bash tools/inspect_v146.sh
+
       - name: Check signing secrets
         env:
           VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
