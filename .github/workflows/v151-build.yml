@@ -80,6 +80,9 @@ jobs:
           tar -xJf /tmp/V151-lean9.tar.xz -C .
           grep -n 'versionCode = 151' app/build.gradle.kts
           grep -n 'versionName = "151.0-test"' app/build.gradle.kts
+          test -f app/src/main/res/drawable/vsp_home.png
+          sed -i 's/R\.drawable\.vsp_splash/R.drawable.vsp_home/g' app/src/main/java/fr/vspgps/app/MainActivity.kt
+          grep -n 'R.drawable.vsp_home' app/src/main/java/fr/vspgps/app/MainActivity.kt | head -1
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
