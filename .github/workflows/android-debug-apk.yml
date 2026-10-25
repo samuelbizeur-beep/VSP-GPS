@@ -1,10 +1,10 @@
-name: Build Android APK V138 CI
+name: Build Android APK V139 CI
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v138-version-display
+      - vsp-v139-separate-package
 
 permissions:
   contents: read
@@ -35,6 +35,9 @@ jobs:
       - name: Apply V138 version display
         run: python3 tools/patch_v138.py
 
+      - name: Apply V139 separate package
+        run: python3 tools/patch_v139.py
+
       - name: Install Java 17
         uses: actions/setup-java@v5
         with:
@@ -62,6 +65,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V138-debug
+          name: VSP-GPS-V139-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
