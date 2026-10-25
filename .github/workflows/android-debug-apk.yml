@@ -1,27 +1,20 @@
-name: Build Android APK V146 hybrid IGN OSM validation
+name: Inspect fully patched V146 sources
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v146-roundabout-physical-exits
+      - vsp-v147-inspect-final-v146
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
       - name: Checkout project
         uses: actions/checkout@v5
-
-      - name: Check restoration package
-        run: test -f V141.zip
 
       - name: Restore advanced VSP GPS source
         run: unzip -o V141.zip -d .
@@ -41,55 +34,12 @@ jobs:
       - name: Apply V146 hybrid OSM and IGN validation patch
         run: python3 tools/patch_v146_roundabout_physical_exits.py
 
-      - name: Inspect V146 roundabout correction flow
-        run: bash tools/inspect_v146.sh
-
-      - name: Check signing secrets
-        env:
-          VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
-          VSP_KEYSTORE_PASSWORD: ${{ secrets.VSP_KEYSTORE_PASSWORD }}
-        run: |
-          test -n "$VSP_KEYSTORE_B64"
-          test -n "$VSP_KEYSTORE_PASSWORD"
-
-      - name: Restore permanent signing key
-        env:
-          VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
-          VSP_KEYSTORE_PASSWORD_SECRET: ${{ secrets.VSP_KEYSTORE_PASSWORD }}
-        run: |
-          KEYSTORE="$RUNNER_TEMP/vsp-gps-update.jks"
-          printf '%s' "$VSP_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
-          echo "VSP_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
-          echo "VSP_KEYSTORE_PASSWORD=$VSP_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
-
-      - name: Install Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle 8.13
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
-
-      - name: Install Android 36 packages
-        run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
-
-      - name: Build signed VSP GPS V146 APK
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
-
-      - name: Verify APK certificate
-        run: |
-          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
-          "$APKSIGNER" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Save APK
+      - name: Export fully patched sources
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V146-hybrid-ign-osm
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: V146-patched-sources
+          path: |
+            app/src/main/java/fr/vspgps/app/MainActivity.kt
+            app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+            app/build.gradle.kts
           if-no-files-found: error
