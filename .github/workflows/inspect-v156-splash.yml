@@ -1,0 +1,51 @@
+name: Inspect V156 splash
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/inspect-v156-splash.yml'
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct V151 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          repairs=[('00','insert',4376,'P'),('08','insert',7827,'F'),('09','replace',9116,'I')]
+          pieces=[]
+          for i in range(15):
+              n=f'{i:02d}'
+              s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+              for rn,mode,pos,ch in repairs:
+                  if rn != n: continue
+                  if mode=='insert' and len(s)==13999: s=s[:pos]+ch+s[pos:]
+                  elif mode=='replace' and len(s)==14000 and n=='09': s=s[:pos]+ch+s[pos+1:]
+              pieces.append(s)
+          Path('/tmp/v151.tar.xz').write_bytes(base64.b64decode(''.join(pieces),validate=True))
+          PY
+          tar -xJf /tmp/v151.tar.xz -C .
+      - name: Inspect startup image and search code
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== image files ==='
+          find app/src/main/res -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) -print | sort
+          echo '=== dimensions ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          for p in Path('app/src/main/res').rglob('*'):
+              if p.suffix.lower() in {'.png','.jpg','.jpeg','.webp'}:
+                  try:
+                      im=Image.open(p)
+                      print(f'{p}: {im.size}')
+                  except Exception as e:
+                      print(p,e)
+          PY
+          echo '=== likely references ==='
+          grep -RniE 'painterResource|Image\(|background|splash|startup|welcome|logo|hero|home.*image|R\.drawable' app/src/main/java app/src/main/res | head -800 || true
