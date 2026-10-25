@@ -1,10 +1,10 @@
-name: Build Android APK V142 version visible
+name: Build Android APK V143 safe comparison
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v142-version-visible
+      - vsp-v143-safe-comparison
 
 permissions:
   contents: read
@@ -28,6 +28,9 @@ jobs:
 
       - name: Apply V142 restore/version patch
         run: python3 tools/patch_v142_restore.py
+
+      - name: Apply V143 safe comparison patch
+        run: python3 tools/patch_v143_safe_comparison.py
 
       - name: Check signing secrets
         env:
@@ -64,7 +67,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V142 APK
+      - name: Build signed VSP GPS V143 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -75,6 +78,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V142-full-signed
+          name: VSP-GPS-V143-safe-comparison
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
