@@ -1,10 +1,10 @@
-name: Build Android APK V145 roundabout drivable no-roadclass
+name: Build Android APK V146 hybrid IGN OSM validation
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v145-roundabout-drivable-no-roadclass
+      - vsp-v146-roundabout-physical-exits
 
 permissions:
   contents: read
@@ -37,6 +37,9 @@ jobs:
 
       - name: Apply V145 drivable exit without roadclass patch
         run: python3 tools/patch_v145_roundabout_missing_roadclass.py
+
+      - name: Apply V146 hybrid OSM and IGN validation patch
+        run: python3 tools/patch_v146_roundabout_physical_exits.py
 
       - name: Check signing secrets
         env:
@@ -73,7 +76,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V145 APK
+      - name: Build signed VSP GPS V146 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -84,6 +87,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V145-roundabout-drivable-no-roadclass
+          name: VSP-GPS-V146-hybrid-ign-osm
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
