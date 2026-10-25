@@ -1,0 +1,32 @@
+name: Export final V148 source for V149 diagnostic
+
+on:
+  push:
+    branches:
+      - vsp-v149-roundabout-diagnostic
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: unzip -o V141.zip -d .
+      - run: python3 tools/patch_v142_restore.py
+      - run: python3 tools/patch_v143_safe_comparison.py
+      - run: python3 tools/patch_v144_roundabout_service_exits.py
+      - run: python3 tools/patch_v145_roundabout_missing_roadclass.py
+      - run: python3 tools/patch_v146_roundabout_physical_exits.py
+      - run: python3 tools/patch_v147_roundabout_pair_propagation.py
+      - run: python3 tools/patch_v148_roundabout_near_geometry.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VSP-GPS-V148-final-source
+          path: |
+            app/src/main/java/fr/vspgps/app/MainActivity.kt
+            app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+            app/build.gradle.kts
+          if-no-files-found: error
