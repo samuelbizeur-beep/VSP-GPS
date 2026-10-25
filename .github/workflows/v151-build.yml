@@ -21,12 +21,87 @@ jobs:
       - name: Checkout V151 branch
         uses: actions/checkout@v4
 
-      - name: Reconstruct and validate V151 source
+      - name: Repair, reconstruct and validate V151 source
         shell: bash
         run: |
           set -euo pipefail
           test "$(find v151_lean -maxdepth 1 -name 'chunk_*.b64' | wc -l)" -eq 15
-          cat v151_lean/chunk_*.b64 | tr -d '\r\n\t ' | base64 --decode > /tmp/V151-lean9.tar.xz
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+
+          alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+          full_hashes = {
+              '00':'5e2b0fd8c9fb07d143c034c28abe819e41e22e4d94188ef9d98fa87f6c5b5c3b',
+              '01':'9e6bcff0d2cfb2647c4271c8fc804f43a1e832a27fd872421e287f0224deafa2',
+              '02':'a1558666381c7c8de1bbc2dc89e8aa0b48a1ffe2508d2d0dce2e81191bbb6f84',
+              '03':'ead48c305d3cd581384ec3ad0bd47c475673e92aca162df37e6865fb90363c38',
+              '04':'dae57190d75c67d63792012e3a11f6089ef06d7aa579ee3ad8f73011bc701589',
+              '05':'604687af82681e121979e445c056a33127e2e565b09dfbcb1472b8f4961f4b6a',
+              '06':'f72b1a35d7fa7796a75333ef223dc73c7622921c530944352f6c7adb88c3c658',
+              '07':'02bf283b071d3781a2185f67ef23420332e28795cc6e06f141050fe9d2195485',
+              '08':'a861aaa8d0a458d17ec702756ba693d670e1df2594aa7fea62bf026e4570a51c',
+              '09':'c25bff024e9ee4060614a81d93199b18d7ccc84498f6b6e345a55afbc62cfe4f',
+              '10':'4f6878b74b2d06ed9e1300aa08c63dc50d23740fabc68dd1498a53c21a48d7d9',
+              '11':'8d618594c96c5b808379ab8cd7b445634ec0b9b7c858a15bf8693fa563e6413b',
+              '12':'0d2fa27218a37079d3ac082e70848cc97db344e0765e78e2a1d9fc5fb7fdbf36',
+              '13':'786c51fee6f89bccebfd9f9a0bb7ae54a6bd6c337c121b4911ead3882b9f80d4',
+              '14':'4d1d947a0bac06e2cc98941d1785066edf1ceb0af61a9f77ea18cacfac082dc7',
+          }
+          block_hashes = {
+          '00':'''51feb4db3843158c56a9b4bba66a16c97271963b48f0bce2dc970711e84e1558,ddab4707b698bb0883a7138d9cc3db1d4874080fe900a60640baac18543cf2e6,a48e82a0f9b6cbd24376973672a257e553e954b0412e96a07f30e3881ce63cac,2e09f89e278acbd70f165cc5a83a1506fbff46a50f39263d1c3f83485dcc7835,2ec59f9f343b9bfa63bca015f564ad89d97e6aba1a800a77cf46a4e2bb430ae0,3c1210855788b8b6a843ff8d8a109e70f4519ad49289bdad475344afc5f26b43,02ed79dcfcf8a6e279031bdd34e6d081d6f1468acbd3323499e458c460ff7237,7d85f798e22eba5fc1f5b0b18b15476b836bb40183675a1e311a998ee38d1542,16badd7a93e347a2d895a4ec73f4e454f7764a3a8e002798e0c8ca05cc98b1cc,ef09c10d0eb6bfbdf14c7641f57bb3e896034cc98462ff91d35fa904cee6ba34,6308cd8c3e24811e1c6c7efa3b37da94f7b6278475fd8d574040f3873d6d5086,bd390b76665af4246cd080bc3465da21148509a1ed658aca1ef95b80dd2ba7cb,f71d028ee021b5b16c524fd87f30cb771c93a9f2cd4a55c1369878d4ee8e6799,372b8432d7ed07917304ee4cb5102e24dd2f54c4da08bb5905e67a5f37552115,085da4002154f2bd79788c7ae8e813ac4533b95718cbd74b23715d7770e152fa,588e23e766a5c4a5fcc8b1597c8b0156865d4e86bf23aa845dd4fad0f520cb2d,012923cc6d804250df456721f47993f978e7f0316db42faba9e50696186daea9,049b29dbbef8ce28d7357c785ea7a7a7aad53c2b5208a1a44a6253514fe7ae97,8874c8360819af80ddb3399ee643922c78f523c7f93634edb3c4ed153ec7b87a,0d4b9d662e1e9b76db7754349e84e4c23395df7e0be5cbb19f0ec61ff077cf94,e2e5db23afb3439dc2e6019a70dd29b7b5142f82f474b5ae3b9b53a505477a7c,32adb6cbe9d7472c4a9fa1f10602560740b8d40804476b8f906bebfe40f3ee77,7a4b3e3c3fbb83147428423d9e9a0c67fd2ac03a7d26b7b8a6cdac75cdca54d2,4d30b08487b4f042a5a4865eb75247d7eb107a829c2bc95e9ae9ae11c9fdf5e6,31faad200d1d93bb306dabc69ee29f4dd3ea6581bed5590395e7f4e982eeb7f3,5317b9f0134b1e46045d395779c5e98201930f8f9c5c5745ad50ed7aaa59cc7b,3c59182385cba46b98f3cbe03582e2f792bbc6f022307070cd7e0953b73921a7,cb8f7335266f750b9b34f66abacf3b23405d26ed8e455a1fdd34fdb0c5252008,f04faed9b82e084df357a5dd8b42e82647808f9b427ee0b2dcde6a20ec1db6f8,4a4d9ce2da09503bb93ef965a205a4f18a1f8350b0d61631563266d980748b74,3b97dc94a7034079dc25dbdc0f0fe66db23ab81099aeb70583f845e28c1e430d,04ca467b547f137ac3f18530504f6fe7b51b5a611f0a9e90b4430a30f1960f9a,4df2cd816e6e714f972723295f98b9671c81528cafcf2e0a706a1a7fe461d29e,c3d9c1365ca11b7c79df9bf3f48d01c791c3f19e620a1874ced41f74caff94bb,96dc21cf20141acafe1309d45067dc50f84a213d3545a4d34171bece58da9a9c,5316f70725c18c6555c8f32d8589e495ed9629d81a37d2fd03e70728bd48fce7,3d403bbe5890f8f4d2c23d0f62a233b2bad1f91ef98ba3a562f596793f74cace,59561551f166663018cebeb50a22986fbd49dbecc8e1b8d5eecfa76d7a9991a4,42560028842e4f8af15ff53511a97ff137fe23b3894f232359814b814c829b1b,0c868470ba5d70abd68d13f68fd0769249dc28fbaa5b59d15ea618d26fd8e47e,e2d263c4c59baddc1d865e003aae9f45d2edf2fc7c77e6e57e9bfb797029bb20,4e6e67eb0de981422e1e793b66e8272f94ecc78024be2eebadc0552aa572e38f,f1a81c9e6947eafc317778492ef9fdb01c1b08a0e944dcf885b01e604fefb180,4df03a7c7f4cc19df054bf80a70f977c851e22437a90cb59e6e2aafa544c2633,0369d7c6ad1abd49f894cd1a354753ad90dfcec215b7807485a9083e1e2bef82,9b75db42f52c20472a09c2661c7efa7baddd4bd0cec4a9f9199fecd640438c1b,d9f772d75963a088ca04f1a8c0fb9909361f661ea6eb901e1472f02fc7e0a291,c960405f8a8ecb34cbd729e1a22199033bab319af6c0db9ad8f5625c8f8f0a04,1861f808844c0f3e5c58114b585c52655eaad53d98aecaba67f9fcfc3a137c69,5f08a518ae004522e4365c0bf256391240a6f17b3f10bb9e126795f1ce69485c,6a673b2fec3a7a7dc2205f4c3a43d4f481ca123e4c2dbc93c458442adf07d2ad,7f04e9a70f688a01363986ac1164c0471094a2a33aee3a2da323f9dcffff3e7a,767553c10a5c9fcfe85e1adea8b3657c2b9a697bf95a7bca653d995c34d4619f,ad34106a59704f57fbf26662cf83d4b7d96f384e39064db0f6ec01127ed52af4,6ee5a570f1a474438097978e14c61fb36b79e785ef55862ac6af8fd10e74952b,a8b62f8d7195cb8e8c587486761485616120efbc8fd1a148d6756dc9b8e97e4f'''.split(','),
+          '08':'''775474972dd06bbd39f1939d24cd42d1b3f98ba45d93f9caae6d9ba1d599bc0f,0674340b97f15e09bae061bf636359bcd3439b666dec98055a2524ac5de7baf8,f3685526cb8e1dce69ea0616260e9c01528084ec0344bdc2f5d88f6c583744a1,57c57dffe99f8bdc9d5e2ea5033a0848b21b559fe3f04eb104693f45aef697c2,bb07652425480ad0594ad873566baf75fe2dc4eef568eb454cd889ad3899f649,c5a508ae83f07a6befe9abb5932c2f5779224e531b942eac976acb5f81e7693b,5578f6c729714268e9ef9bffe53424854f5b94467c7412282cdb06c994df8a7f,3291194fb47aed46df847a6f4ea0088a1517e3d7943ce4f14d88f1f2cd91513e,b683114893baef450c9f2e4395a12592d42bdb3f257eb2a9fc940c4cc4d78c99,4ddb37d06cfb2f9401bb59327f0a8e1b6a25060bec6d245a6dd1f9cfc711c94d,287d99ab9f7971876a84f6ce3bbc351aaa3e37934639bf4af87d9ba6d714dfbe,2ac601d8db00a08a92bb79c50ef19f9fd87f81519533ed6ee3926774533fc1ea,b60821fab07f04e9b0837c188cfa06660efc72eb83aa822f80811f27687a417c,4fbefee659830f22bc9acfa5d5d991500d5f45fe2a2c9e5ffb8947e45254df34,0e8c93aab72e955353d1d7a116a620f2e878c66258a947594abd89c5d32a3e93,60ad0293bc21be9ce86c370201e4063649bd594c02a23ce02d9c58eca9d1cae5,1585139454bf5bd99f769283bda08fa5e55a46ca85d9b8f9da9673dc28bc17c7,20633d33b218c6981a2a9ab2aa2e140c5a41c85728e2c1095dab1f0aaec315ba,b3f8076c9d31c01242c32dfdece40181e347de4101280986ab2ecbe68e2ba3b9,1f67601caf1b8f14e17f3b35027cedf2e7a83d6ac60562f43ff14a82de6a2619,3cf21d699d073d93b9b4bbde82ab12697d16f40ec00550ec7f375e5dd15a5203,dd8a5d2ccadc1cd89fa005b8afa76daae8a34dd758d40c458db0bbf4153103da,bd9300e79efe8af92b4e6e4ee55f8d9d09dba0dbf49ca0a4d512dfd24289f543,6296f8d2cfb0843fe1ebe4e175cd6f1f7f44eac516a1128734d46f971dfeead9,0c45697c98362b258a54dc4f60973d816b9197acc604621df9a25232e74575d8,8deb12126d983bf4e02aecbdc655de9007c8c6fcd18b722ee99cdf31f076b789,85fee7c92a28bb16d3b4e6d84fab49ae27bbf4ac8239dbd6c41d71daa73eaa9a,201c31104280bc6e7be8839c4e259a974a23ef8888a3a0c250522ccf85cb6cea,8d4b818c36c817421da55366c5434f4ece9b803b7c22edb1819f9e186d3995f4,359164f718ac73e0c3ef4660de0ad3420a8374a7b1803566c258ae47c880bf97,fd6693ebd7d7d83e6cfac88b49bb6903071ad02b23136eb811646cba45e4ea47,918472a9d7b7e476c1bc285d051cf4eeb86b7921a1c692d48cb7502beaa9b4aa,afdbbe992218938c4918219c5280b7132292f5491e9279304e42a8e0c83a139b,5c79e9397039613f3496218880d5cbd6a76c99d58d89d073d3f20a90ca115908,425c2316299cd121e80434fd6f224e358f95d2aa8ad48542936abbf1cbcedf0c,2ddc11bbd8818e342d6b39fb99328a7a541720537ed104abd060841ec73fb173,5440bfdb245341c7bdf91197835a1d121e34b1363e86822658c95697eaeb8a84,e94447df305f965f07abeaf741d1db79379410d4c39c4cc8d8d8756d83f9526e,b457eff451eb3300c070a9d017369c3b0d4fbb01278ba70d11475465d489f96d,3dcf928da491c32959aaa655eec8299f09bf7b93b9fbaf27538f1e16d98eb7b6,f270ac013c7ec2968e0340547d98ead1669e94d8c03fe4f5553749d9b3feb9e4,ffeeb90b7c5171d7ad9dea1a68045829b0f3a48f45ef9c7b7d7a9ad0744b9579,77274640424e66d0601cce58a7c4ce4444ba1a75db54f4debfec8f027ed9133b,c540a3fd69b5a9b5e6b420dd53f37cbd152c7255dd28aa966e012d866df58b4d,879395ba2a2d67935a3773599828b74e76dda6acb70e6fb0f7dacc5e2696b9eb,6e1dea76ae17223be6f2518728c6eff846061f6c8be0d92426ad55eb167fa218,c634dad79b5296404fa1a88e1c584056eaa4092f4952d6950451d1bd13551ee3,e5bfb3071eb612be278f4946993ac8c3b1da01ab974da619d6900ae5ebffee3e,f3c71c6c073b8a9788994ae2bb7699bd697a7667faf03fbd69b9894c0db24b60,cbe5950286307e7c764b4ccbff125f55faffd5b2a9b1c0a5fc54f85f237eab82,1fe7b5041796c836fa12fe34f50f57c5d260d7226a233a5562fcebb084e91662,59b8e57f2d855fe1ef71d65145a83ff438407f8861fcd187a5abdf53a706ad31,4dc990ac3540082a9e3b559a35f8dc38aeb0a96f82365fab11ca5d7ed33e2ea9,32ac49ea7d9a0e33ea9ca4a3c18a7a45353a637d52c38db09922640b8a199663,4bc1c390e9ed70a8276b04d75964c7ef4e8e31b11ec7ff770bece9c7ed6e5b3c,66638b188fb75680b77fda95bc56b9136dd062d0f17de14055142c134d69dca8'''.split(','),
+          }
+
+          def sha(s):
+              return hashlib.sha256(s.encode('ascii')).hexdigest()
+
+          for n in ('00','08'):
+              p = Path(f'v151_lean/chunk_{n}.b64')
+              s = ''.join(p.read_text().split())
+              if sha(s) == full_hashes[n]:
+                  continue
+              if len(s) != 13999:
+                  raise SystemExit(f'chunk {n}: longueur inattendue {len(s)}')
+              first_bad = None
+              for k,h in enumerate(block_hashes[n]):
+                  if sha(s[k*250:(k+1)*250]) != h:
+                      first_bad = k
+                      break
+              if first_bad is None:
+                  raise SystemExit(f'chunk {n}: bloc fautif introuvable')
+              lo = first_bad * 250
+              hi = min(len(s), lo + 250)
+              found = None
+              for pos in range(lo, hi + 1):
+                  for ch in alphabet:
+                      candidate = s[:pos] + ch + s[pos:]
+                      if sha(candidate) == full_hashes[n]:
+                          found = candidate
+                          print(f'chunk {n} réparé: caractère {ch!r} à la position {pos}')
+                          break
+                  if found is not None:
+                      break
+              if found is None:
+                  raise SystemExit(f'chunk {n}: réparation impossible')
+              p.write_text(found)
+
+          pieces=[]
+          for i in range(15):
+              n=f'{i:02d}'
+              s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+              got=sha(s)
+              if got != full_hashes[n]:
+                  raise SystemExit(f'chunk {n}: SHA invalide {got}')
+              pieces.append(s)
+          raw = base64.b64decode(''.join(pieces), validate=True)
+          got = hashlib.sha256(raw).hexdigest()
+          expected = 'c3ebb279385ad13d935eef2201a541a64006edfd949bce0b67bc66f0c4768b19'
+          if got != expected:
+              raise SystemExit(f'archive SHA invalide {got}')
+          Path('/tmp/V151-lean9.tar.xz').write_bytes(raw)
+          print('15 fragments + archive V151 validés')
+          PY
           xz -t /tmp/V151-lean9.tar.xz
           tar -tJf /tmp/V151-lean9.tar.xz >/tmp/v151-files.txt
           echo "Archive V151 valide : $(wc -l </tmp/v151-files.txt) fichiers"
