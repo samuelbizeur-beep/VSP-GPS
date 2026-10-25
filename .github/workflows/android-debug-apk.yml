@@ -1,10 +1,10 @@
-name: Build Android APK V137 CI
+name: Build Android APK V138 CI
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v137-fast-poi
+      - vsp-v138-version-display
 
 permissions:
   contents: read
@@ -31,6 +31,9 @@ jobs:
 
       - name: Fix V137 Leclerc regex
         run: python3 tools/fix_v137_escape.py
+
+      - name: Apply V138 version display
+        run: python3 tools/patch_v138.py
 
       - name: Install Java 17
         uses: actions/setup-java@v5
@@ -59,6 +62,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V137-debug
+          name: VSP-GPS-V138-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
