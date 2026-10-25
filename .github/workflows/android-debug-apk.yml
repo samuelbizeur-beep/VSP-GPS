@@ -1,10 +1,10 @@
-name: Build Android APK V147 paired roundabout correction
+name: Build Android APK V148 near-geometry roundabout exits
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v147-roundabout-pair-propagation
+      - vsp-v148-roundabout-near-geometry
 
 permissions:
   contents: read
@@ -44,11 +44,14 @@ jobs:
       - name: Apply V147 paired roundabout propagation patch
         run: python3 tools/patch_v147_roundabout_pair_propagation.py
 
-      - name: Verify V147 propagation anchors
+      - name: Apply V148 near-geometry roundabout patch
+        run: python3 tools/patch_v148_roundabout_near_geometry.py
+
+      - name: Verify V148 anchors
         run: |
-          grep -n "V147 : raisonner sur le groupe complet" app/src/main/java/fr/vspgps/app/MainActivity.kt
-          grep -n "écrire le même numéro sur les deux manœuvres" app/src/main/java/fr/vspgps/app/MainActivity.kt
-          grep -n 'versionCode = 147' app/build.gradle.kts
+          grep -n "V148 : récupérer aussi les voies carrossables proches" app/src/main/java/fr/vspgps/app/MainActivity.kt
+          grep -n "secours géométrique pour les sorties carrossables" app/src/main/java/fr/vspgps/app/MainActivity.kt
+          grep -n 'versionCode = 148' app/build.gradle.kts
 
       - name: Check signing secrets
         env:
@@ -85,7 +88,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V147 APK
+      - name: Build signed VSP GPS V148 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -96,6 +99,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V147-roundabout-pair-propagation
+          name: VSP-GPS-V148-roundabout-near-geometry
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
