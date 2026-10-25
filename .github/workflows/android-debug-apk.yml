@@ -2,6 +2,9 @@ name: Build Android APK V140 signed
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - vsp-v140-signed-updates
 
 permissions:
   contents: read
@@ -79,7 +82,7 @@ jobs:
       - name: Verify APK certificate
         run: |
           APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
-          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
+          "$APKSIGNER" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Save APK
         uses: actions/upload-artifact@v4
