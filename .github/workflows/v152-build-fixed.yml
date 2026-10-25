@@ -1,0 +1,110 @@
+name: Build V152 Fixed APK
+
+on:
+  push:
+    branches:
+      - v151-build
+    paths:
+      - '.github/workflows/v152-build-fixed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct V151 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          repairs=[('00','insert',4376,'P'),('08','insert',7827,'F'),('09','replace',9116,'I')]
+          expected_archive='c3ebb279385ad13d935eef2201a541a64006edfd949bce0b67bc66f0c4768b19'
+          pieces=[]
+          for i in range(15):
+              n=f'{i:02d}'
+              s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+              for rn,mode,pos,ch in repairs:
+                  if rn != n: continue
+                  if mode == 'insert' and len(s) == 13999:
+                      s=s[:pos]+ch+s[pos:]
+                  elif mode == 'replace' and len(s) == 14000 and n == '09':
+                      # chunk 09 in the stored branch contains one known wrong character.
+                      s=s[:pos]+ch+s[pos+1:]
+              pieces.append(s)
+          raw=base64.b64decode(''.join(pieces), validate=True)
+          got=hashlib.sha256(raw).hexdigest()
+          if got != expected_archive:
+              raise SystemExit(f'archive V151 SHA mismatch: {got}')
+          Path('/tmp/v151.tar.xz').write_bytes(raw)
+          PY
+          xz -t /tmp/v151.tar.xz
+          tar -xJf /tmp/v151.tar.xz -C .
+
+      - name: Apply V152 fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 v151_lean/v152_patch.py
+          sed -i 's/versionCode = 151/versionCode = 152/' app/build.gradle.kts
+          sed -i 's/versionName = "151.0-test"/versionName = "152.0-test"/' app/build.gradle.kts
+          sed -i 's/applicationId = "fr\.vspgps\.app"/applicationId = "fr.vspgps.app.v152test"/' app/build.gradle.kts
+          sed -i 's/android:label="VSP GPS"/android:label="VSP GPS V152 TEST"/' app/src/main/AndroidManifest.xml
+          grep -n 'versionCode = 152' app/build.gradle.kts
+          grep -n 'fr.vspgps.app.v152test' app/build.gradle.kts
+          grep -n 'mergedServiceDuplicates152' app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="$HOME/android-sdk"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/android-tools.zip
+          unzip -q /tmp/android-tools.zip -d /tmp/android-tools
+          mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+          mv /tmp/android-tools/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Build V152 debug APK
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
+          test -n "$APK"
+          cp "$APK" VSP-GPS-V152-SIDE-BY-SIDE.apk
+          unzip -t VSP-GPS-V152-SIDE-BY-SIDE.apk >/dev/null
+          ls -lh VSP-GPS-V152-SIDE-BY-SIDE.apk
+
+      - name: Upload V152 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-GPS-V152-SIDE-BY-SIDE
+          path: VSP-GPS-V152-SIDE-BY-SIDE.apk
+          if-no-files-found: error
