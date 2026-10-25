@@ -1,10 +1,10 @@
-name: Build Android APK V141 full restore
+name: Build Android APK V142 version visible
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v141-full-restore
+      - vsp-v142-version-visible
 
 permissions:
   contents: read
@@ -26,8 +26,8 @@ jobs:
       - name: Restore advanced VSP GPS source
         run: unzip -o V141.zip -d .
 
-      - name: Apply V141 restore patch
-        run: python3 tools/patch_v141_restore.py
+      - name: Apply V142 restore/version patch
+        run: python3 tools/patch_v142_restore.py
 
       - name: Check signing secrets
         env:
@@ -64,7 +64,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V141 APK
+      - name: Build signed VSP GPS V142 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -75,6 +75,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V141-full-signed
+          name: VSP-GPS-V142-full-signed
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
