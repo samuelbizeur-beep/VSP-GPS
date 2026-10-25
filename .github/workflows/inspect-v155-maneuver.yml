@@ -1,0 +1,54 @@
+name: Inspect V155 maneuver logic
+
+on:
+  push:
+    branches:
+      - v151-build
+    paths:
+      - '.github/workflows/inspect-v155-maneuver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct V151 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          repairs=[('00','insert',4376,'P'),('08','insert',7827,'F'),('09','replace',9116,'I')]
+          pieces=[]
+          for i in range(15):
+              n=f'{i:02d}'
+              s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+              for rn,mode,pos,ch in repairs:
+                  if rn != n: continue
+                  if mode == 'insert' and len(s)==13999: s=s[:pos]+ch+s[pos:]
+                  elif mode == 'replace' and len(s)==14000 and n=='09': s=s[:pos]+ch+s[pos+1:]
+              pieces.append(s)
+          Path('/tmp/v151.tar.xz').write_bytes(base64.b64decode(''.join(pieces), validate=True))
+          PY
+          tar -xJf /tmp/v151.tar.xz -C .
+
+      - name: Print maneuver and exit-count code
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '===== LocalValhallaRouter matches ====='
+          grep -nEi 'roundabout_exit_count|maneuver|maneuvers|roundabout|exit_count|instruction|verbal' app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt | head -500 || true
+          echo '===== MainActivity matches ====='
+          grep -nEi 'roundabout_exit_count|maneuver|maneuvers|roundabout|exit_count|instruction|verbal' app/src/main/java/fr/vspgps/app/MainActivity.kt | head -500 || true
+          echo '===== Router contexts ====='
+          for n in $(grep -nE 'roundabout_exit_count|maneuvers' app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt | cut -d: -f1 | head -40); do
+            a=$((n-35)); [ $a -lt 1 ] && a=1; b=$((n+70));
+            echo "--- LocalValhallaRouter $a-$b ---";
+            sed -n "${a},${b}p" app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt;
+          done
