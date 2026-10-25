@@ -44,6 +44,15 @@ jobs:
       - name: Inspect V146 roundabout correction flow
         run: bash tools/inspect_v146.sh
 
+      - name: Export patched V146 sources for diagnosis
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-GPS-V146-patched-source
+          path: |
+            app/src/main/java/fr/vspgps/app/MainActivity.kt
+            app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+          if-no-files-found: error
+
       - name: Check signing secrets
         env:
           VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
