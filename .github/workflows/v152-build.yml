@@ -1,0 +1,213 @@
+name: Build V152 APK
+
+on:
+  push:
+    branches:
+      - v151-build
+    paths:
+      - '.github/workflows/v152-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct V151 base and apply V152 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+          expected = {
+            '00':'5e2b0fd8c9fb07d143c034c28abe819e41e22e4d94188ef9d98fa87f6c5b5c3b','01':'9e6bcff0d2cfb2647c4271c8fc804f43a1e832a27fd872421e287f0224deafa2','02':'a1558666381c7c8de1bbc2dc89e8aa0b48a1ffe2508d2d0dce2e81191bbb6f84','03':'ead48c305d3cd581384ec3ad0bd47c475673e92aca162df37e6865fb90363c38','04':'dae57190d75c67d63792012e3a11f6089ef06d7aa579ee3ad8f73011bc701589','05':'604687af82681e121979e445c056a33127e2e565b09dfbcb1472b8f4961f4b6a','06':'f72b1a35d7fa7796a75333ef223dc73c7622921c530944352f6c7adb88c3c658','07':'02bf283b071d3781a2185f67ef23420332e28795cc6e06f141050fe9d2195485','08':'a861aaa8d0a458d17ec702756ba693d670e1df2594aa7fea62bf026e4570a51c','09':'c25bff024e9ee4060614a81d93199b18d7ccc84498f6b6e345a55afbc62cfe4f','10':'4f6878b74b2d06ed9e1300aa08c63dc50d23740fabc68dd1498a53c21a48d7d9','11':'8d618594c96c5b808379ab8cd7b445634ec0b9b7c858a15bf8693fa563e6413b','12':'0d2fa27218a37079d3ac082e70848cc97db344e0765e78e2a1d9fc5fb7fdbf36','13':'786c51fee6f89bccebfd9f9a0bb7ae54a6bd6c337c121b4911ead3882b9f80d4','14':'4d1d947a0bac06e2cc98941d1785066edf1ceb0af61a9f77ea18cacfac082dc7'}
+          def sha(s): return hashlib.sha256(s.encode('ascii')).hexdigest()
+          repairs=[('00','insert',4376,'P'),('08','insert',7827,'F'),('09','replace',9116,'I')]
+          for n,mode,pos,ch in repairs:
+              p=Path(f'v151_lean/chunk_{n}.b64'); s=''.join(p.read_text().split())
+              if sha(s)!=expected[n]:
+                  s=s[:pos]+ch+(s[pos:] if mode=='insert' else s[pos+1:])
+                  if sha(s)!=expected[n]: raise SystemExit(f'fragment {n} invalide')
+                  p.write_text(s)
+          pieces=[]
+          for i in range(15):
+              n=f'{i:02d}'; s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+              if sha(s)!=expected[n]: raise SystemExit(f'fragment {n} SHA invalide')
+              pieces.append(s)
+          raw=base64.b64decode(''.join(pieces),validate=True)
+          if hashlib.sha256(raw).hexdigest()!='c3ebb279385ad13d935eef2201a541a64006edfd949bce0b67bc66f0c4768b19':
+              raise SystemExit('archive V151 invalide')
+          Path('/tmp/v151.tar.xz').write_bytes(raw)
+          PY
+          tar -xJf /tmp/v151.tar.xz -C .
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt')
+          s=p.read_text()
+
+          old1='''            fun angularDistance105(a: Double, b: Double): Double {
+                val d = kotlin.math.abs(a - b) % 360.0
+                return kotlin.math.min(d, 360.0 - d)
+            }
+
+            // Les accès de desserte/parking ne doivent pas devenir une "sortie" vocale.'''
+          new1='''            fun angularDistance105(a: Double, b: Double): Double {
+                val d = kotlin.math.abs(a - b) % 360.0
+                return kotlin.math.min(d, 360.0 - d)
+            }
+
+            // V152 : deux branches de service raccordées à deux nœuds voisins peuvent
+            // représenter le même accès physique (entrée/sortie d'un parking ou d'une aire).
+            // V151 ne dédoublonnait que les headings du même nœud et pouvait donc compter
+            // ce même accès deux fois. On garde les routes normales séparées et on ne
+            // regroupe entre nœuds que les branches de type service/service_road.
+            val shapePoints152 = decodePolyline6Local(encodedShape)
+            fun branchNodeDistance152(a: Int, b: Int): Double {
+                if (a !in shapePoints152.indices || b !in shapePoints152.indices) return Double.POSITIVE_INFINITY
+                return distanceMetersLocal(shapePoints152[a], shapePoints152[b])
+            }
+            data class ServiceBranch152(val shapeIndex: Int, val heading: Double)
+            val serviceUses152 = setOf("service", "service_road")
+
+            // Les accès de desserte/parking ne doivent pas devenir une "sortie" vocale.'''
+          if old1 not in s: raise SystemExit('patch V152 insertion helper introuvable')
+          s=s.replace(old1,new1,1)
+
+          old2='''                var priorUsableExits = 0
+                val branchDebug = org.json.JSONArray()
+
+                // IMPORTANT V105 : endEdge est EXCLU.'''
+          new2='''                var priorUsableExits = 0
+                val branchDebug = org.json.JSONArray()
+                val serviceBranches152 = mutableListOf<ServiceBranch152>()
+                var mergedServiceDuplicates152 = 0
+
+                // IMPORTANT V105 : endEdge est EXCLU.'''
+          if old2 not in s: raise SystemExit('patch V152 état groupe introuvable')
+          s=s.replace(old2,new2,1)
+
+          old3='''                        val heading = branch.optDouble("begin_heading", Double.NaN)
+                        if (!heading.isFinite()) continue
+
+                        // Une chaussée divisée / deux arêtes parallèles au même noeud représentent
+                        // souvent une seule sortie physique. 25° garde les branches distinctes tout
+                        // en supprimant ce doublonnage de graphe.
+                        if (uniqueHeadings.none { angularDistance105(it, heading) < 25.0 }) {
+                            uniqueHeadings += heading
+                        }'''
+          new3='''                        val heading = branch.optDouble("begin_heading", Double.NaN)
+                        if (!heading.isFinite()) continue
+
+                        val nodeShapeIndex152 = edge.optInt("end_shape_index", -1)
+                        val serviceLike152 = use in serviceUses152
+                        val samePhysicalServiceAccess152 = serviceLike152 && nodeShapeIndex152 >= 0 &&
+                            serviceBranches152.any { previous ->
+                                branchNodeDistance152(previous.shapeIndex, nodeShapeIndex152) <= 45.0 &&
+                                    angularDistance105(previous.heading, heading) <= 70.0
+                            }
+                        if (samePhysicalServiceAccess152) {
+                            // V152 : même accès de service vu depuis un nœud voisin du rond-point.
+                            // Ne pas le transformer en une sortie supplémentaire.
+                            mergedServiceDuplicates152 += 1
+                            continue
+                        }
+
+                        // Une chaussée divisée / deux arêtes parallèles au même noeud représentent
+                        // souvent une seule sortie physique. 25° garde les branches distinctes tout
+                        // en supprimant ce doublonnage de graphe.
+                        if (uniqueHeadings.none { angularDistance105(it, heading) < 25.0 }) {
+                            uniqueHeadings += heading
+                            if (serviceLike152 && nodeShapeIndex152 >= 0) {
+                                serviceBranches152 += ServiceBranch152(nodeShapeIndex152, heading)
+                            }
+                        }'''
+          if old3 not in s: raise SystemExit('patch V152 filtre branche introuvable')
+          s=s.replace(old3,new3,1)
+
+          old4='''                        put("prior_usable_exits", priorUsableExits)
+                        put("branches", branchDebug)
+                        put("source", "v105_path_topology")'''
+          new4='''                        put("prior_usable_exits", priorUsableExits)
+                        put("merged_service_duplicates", mergedServiceDuplicates152)
+                        put("branches", branchDebug)
+                        put("source", "v152_path_topology_service_cluster")'''
+          if old4 not in s: raise SystemExit('patch V152 audit introuvable')
+          s=s.replace(old4,new4,1)
+          p.write_text(s)
+
+          m=Path('app/src/main/java/fr/vspgps/app/MainActivity.kt')
+          t=m.read_text()
+          old5='''                                val src151 = item151.optString("match_source", item151.optString("source", "topologie locale"))
+                                add("RP $rpNumber151 : natif=$native151 → topologie=$topo151 • $src151")'''
+          new5='''                                val src151 = item151.optString("match_source", item151.optString("source", "topologie locale"))
+                                val merged152 = item151.optInt("merged_service_duplicates", 0)
+                                val mergedText152 = if (merged152 > 0) " • accès service fusionnés=$merged152" else ""
+                                add("RP $rpNumber151 : natif=$native151 → topologie=$topo151 • $src151$mergedText152")'''
+          if old5 not in t: raise SystemExit('patch V152 diagnostic UI introuvable')
+          t=t.replace(old5,new5,1)
+          t=t.replace('R.drawable.vsp_splash','R.drawable.vsp_home')
+          m.write_text(t)
+          PY
+
+          sed -i 's/versionCode = 151/versionCode = 152/' app/build.gradle.kts
+          sed -i 's/versionName = "151.0-test"/versionName = "152.0-test"/' app/build.gradle.kts
+          sed -i 's/applicationId = "fr\.vspgps\.app"/applicationId = "fr.vspgps.app.v152test"/' app/build.gradle.kts
+          sed -i 's/android:label="VSP GPS"/android:label="VSP GPS V152 TEST"/' app/src/main/AndroidManifest.xml
+          grep -n 'versionCode = 152' app/build.gradle.kts
+          grep -n 'fr.vspgps.app.v152test' app/build.gradle.kts
+          grep -n 'mergedServiceDuplicates152' app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="$HOME/android-sdk"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/android-tools.zip
+          unzip -q /tmp/android-tools.zip -d /tmp/android-tools
+          mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+          mv /tmp/android-tools/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Build V152 debug APK
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
+          test -n "$APK"
+          cp "$APK" VSP-GPS-V152-SIDE-BY-SIDE.apk
+          unzip -t VSP-GPS-V152-SIDE-BY-SIDE.apk >/dev/null
+          ls -lh VSP-GPS-V152-SIDE-BY-SIDE.apk
+
+      - name: Upload V152 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-GPS-V152-SIDE-BY-SIDE
+          path: VSP-GPS-V152-SIDE-BY-SIDE.apk
+          if-no-files-found: error
