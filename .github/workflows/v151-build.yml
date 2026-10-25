@@ -1,0 +1,67 @@
+name: Build V151 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v151-build
+    paths:
+      - 'v151_lean/**'
+      - '.github/workflows/v151-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout V151 branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct and validate V151 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find v151_lean -maxdepth 1 -name 'chunk_*.b64' | wc -l)" -eq 15
+          cat v151_lean/chunk_*.b64 | tr -d '\r\n\t ' | base64 --decode > /tmp/V151-lean9.tar.xz
+          xz -t /tmp/V151-lean9.tar.xz
+          tar -tJf /tmp/V151-lean9.tar.xz >/tmp/v151-files.txt
+          echo "Archive V151 valide : $(wc -l </tmp/v151-files.txt) fichiers"
+          tar -xJf /tmp/V151-lean9.tar.xz -C .
+          grep -n 'versionCode 151\|versionCode = 151' app/build.gradle.kts
+          grep -n '151.0-test' app/build.gradle.kts
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+
+      - name: Build V151 debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
+          test -n "$APK"
+          cp "$APK" VSP-GPS-V151-roundabout-test-stop.apk
+          ls -lh VSP-GPS-V151-roundabout-test-stop.apk
+
+      - name: Upload V151 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSP-GPS-V151-roundabout-test-stop
+          path: VSP-GPS-V151-roundabout-test-stop.apk
+          if-no-files-found: error
