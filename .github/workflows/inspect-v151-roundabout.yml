@@ -38,16 +38,18 @@ jobs:
           PY
           tar -xJf /tmp/v151.tar.xz -C .
 
-      - name: Print roundabout counting code
+      - name: Print exact topology code
         shell: bash
         run: |
           set -euo pipefail
-          F=app/src/main/java/fr/vspgps/app/MainActivity.kt
+          echo '--- FILES ---'
+          grep -RIlE '_vsp_roundabout_audit|topologie=|roundabout_exit_count|roundabout.*topolog|roundabout.*audit' app/src/main/java || true
           echo '--- MATCHES ---'
-          grep -nEi 'roundabout|rond.point|natif=|calcul=|ring=|service|parking_aisle|driveway|track|candidate|sortie' "$F" | head -350 || true
-          echo '--- CONTEXT AROUND CALCUL / RING ---'
-          for n in $(grep -nE 'calcul=|ring=' "$F" | cut -d: -f1 | head -20); do
-            a=$((n-35)); [ $a -lt 1 ] && a=1; b=$((n+55));
-            echo "===== lines $a-$b =====";
-            sed -n "${a},${b}p" "$F";
-          done
+          grep -RniE '_vsp_roundabout_audit|topologie=|roundabout_exit_count|ringId|ring_id|parking_aisle|driveway|highway.*service|access.*private|agricultural' app/src/main/java | head -500 || true
+          echo '--- CONTEXT ---'
+          while IFS=: read -r f n rest; do
+            [ -z "$f" ] && continue
+            a=$((n-45)); [ $a -lt 1 ] && a=1; b=$((n+120));
+            echo "===== $f lines $a-$b =====";
+            sed -n "${a},${b}p" "$f";
+          done < <(grep -RniE '_vsp_roundabout_audit|topologie=' app/src/main/java | head -20)
