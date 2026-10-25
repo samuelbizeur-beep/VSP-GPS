@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# V138 test build: keep the displayed version synchronized with Android package metadata.
 # Give Android a genuinely newer package version so manual installation cannot be
 # confused with the previous test APKs.
 build_path = Path("app/build.gradle.kts")
