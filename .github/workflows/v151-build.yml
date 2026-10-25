@@ -21,7 +21,7 @@ jobs:
       - name: Checkout V151 branch
         uses: actions/checkout@v4
 
-      - name: Repair and validate V151 source
+      - name: Reconstruct and validate V151 source
         shell: bash
         run: |
           set -euo pipefail
@@ -29,81 +29,78 @@ jobs:
           from pathlib import Path
           import base64, hashlib
 
-          def sha(s): return hashlib.sha256(s.encode('ascii')).hexdigest()
-          alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
           expected = {
-            '00':'5e2b0fd8c9fb07d143c034c28abe819e41e22e4d94188ef9d98fa87f6c5b5c3b','01':'9e6bcff0d2cfb2647c4271c8fc804f43a1e832a27fd872421e287f0224deafa2','02':'a1558666381c7c8de1bbc2dc89e8aa0b48a1ffe2508d2d0dce2e81191bbb6f84','03':'ead48c305d3cd581384ec3ad0bd47c475673e92aca162df37e6865fb90363c38','04':'dae57190d75c67d63792012e3a11f6089ef06d7aa579ee3ad8f73011bc701589','05':'604687af82681e121979e445c056a33127e2e565b09dfbcb1472b8f4961f4b6a','06':'f72b1a35d7fa7796a75333ef223dc73c7622921c530944352f6c7adb88c3c658','07':'02bf283b071d3781a2185f67ef23420332e28795cc6e06f141050fe9d2195485','08':'a861aaa8d0a458d17ec702756ba693d670e1df2594aa7fea62bf026e4570a51c','09':'c25bff024e9ee4060614a81d93199b18d7ccc84498f6b6e345a55afbc62cfe4f','10':'4f6878b74b2d06ed9e1300aa08c63dc50d23740fabc68dd1498a53c21a48d7d9','11':'8d618594c96c5b808379ab8cd7b445634ec0b9b7c858a15bf8693fa563e6413b','12':'0d2fa27218a37079d3ac082e70848cc97db344e0765e78e2a1d9fc5fb7fdbf36','13':'786c51fee6f89bccebfd9f9a0bb7ae54a6bd6c337c121b4911ead3882b9f80d4','14':'4d1d947a0bac06e2cc98941d1785066edf1ceb0af61a9f77ea18cacfac082dc7'}
+            '00':'5e2b0fd8c9fb07d143c034c28abe819e41e22e4d94188ef9d98fa87f6c5b5c3b',
+            '01':'9e6bcff0d2cfb2647c4271c8fc804f43a1e832a27fd872421e287f0224deafa2',
+            '02':'a1558666381c7c8de1bbc2dc89e8aa0b48a1ffe2508d2d0dce2e81191bbb6f84',
+            '03':'ead48c305d3cd581384ec3ad0bd47c475673e92aca162df37e6865fb90363c38',
+            '04':'dae57190d75c67d63792012e3a11f6089ef06d7aa579ee3ad8f73011bc701589',
+            '05':'604687af82681e121979e445c056a33127e2e565b09dfbcb1472b8f4961f4b6a',
+            '06':'f72b1a35d7fa7796a75333ef223dc73c7622921c530944352f6c7adb88c3c658',
+            '07':'02bf283b071d3781a2185f67ef23420332e28795cc6e06f141050fe9d2195485',
+            '08':'a861aaa8d0a458d17ec702756ba693d670e1df2594aa7fea62bf026e4570a51c',
+            '09':'c25bff024e9ee4060614a81d93199b18d7ccc84498f6b6e345a55afbc62cfe4f',
+            '10':'4f6878b74b2d06ed9e1300aa08c63dc50d23740fabc68dd1498a53c21a48d7d9',
+            '11':'8d618594c96c5b808379ab8cd7b445634ec0b9b7c858a15bf8693fa563e6413b',
+            '12':'0d2fa27218a37079d3ac082e70848cc97db344e0765e78e2a1d9fc5fb7fdbf36',
+            '13':'786c51fee6f89bccebfd9f9a0bb7ae54a6bd6c337c121b4911ead3882b9f80d4',
+            '14':'4d1d947a0bac06e2cc98941d1785066edf1ceb0af61a9f77ea18cacfac082dc7',
+          }
+          def sha(s): return hashlib.sha256(s.encode('ascii')).hexdigest()
 
-          known=[('00','insert',4376,'P'),('08','insert',7827,'F'),('09','replace',9116,'I')]
-          for n,mode,pos,ch in known:
-              p=Path(f'v151_lean/chunk_{n}.b64'); s=''.join(p.read_text().split())
-              if sha(s)==expected[n]: continue
-              if mode=='insert': s=s[:pos]+ch+s[pos:]
-              else: s=s[:pos]+ch+s[pos+1:]
-              if sha(s)!=expected[n]: raise SystemExit(f'chunk {n}: réparation connue échouée')
-              p.write_text(s); print(f'chunk {n} réparé')
+          repairs = [('00','insert',4376,'P'), ('08','insert',7827,'F'), ('09','replace',9116,'I')]
+          for n, mode, pos, ch in repairs:
+            p = Path(f'v151_lean/chunk_{n}.b64')
+            s = ''.join(p.read_text().split())
+            if sha(s) != expected[n]:
+              s = s[:pos] + ch + (s[pos:] if mode == 'insert' else s[pos+1:])
+              if sha(s) != expected[n]:
+                raise SystemExit(f'Réparation du fragment {n} échouée')
+              p.write_text(s)
+              print(f'fragment {n} réparé')
 
-          blocks={
-          '12':'''20c5c17952689703ef2acea34d22dbee15dcb1c78c7a1c699b50f9391ec504a4,195d65b613c178b98aa7cb8198dc160dd5c3aa1302ff856cad8f927cc6bf0c98,9c29654b80ea59bc9eba48fb62ccdad45a0fd3c4b5e8a7f7b3f46db0d7f99564,34adb25014e4837e5250e32c3c5cad264b51690d221fe6a1d5d9cb53901abef6,373cce1fc3ca6bba5c325f42465b83ceb9b825a71fbe6a69b7564bf23eada11b,9c0cdba66d85afc68347707b5e2110148a3180548d06be7bc54d7cbc48021586,abfb42e7961e3485d040ea1b6ea85f382270216dff1923631ec635ee2c0db2e7,5172dd30e23bc695cc0a856bad65cadd7576b9902c79c0747e2883e38942fe42,5f545114dec22066a4344082e17d3e844d6dcf5491eabc67d1fae98525e3df44,bcca070c6650782eed678ed2a9b1e084b33ab005653e36cf57fcd47f6092f9b5,2e99163bc448dd62f53e307a73ad6f2f728844335ebd509fd49ad2ca927c1da3,515d6854ec7603ab0039d361109fb472279a1fca06aa8d7fd106cc2ca0f31ab1,49efe3444c4d477a314361de8da8ee11f495f9e662c9616e153ead1921d21c95,d2bab9ad360c830467f0f84f4553bceafc4b36cb09a5894bd620163cf1cc585c,5abfbfc1434560d621d1cee79ca3cf9ea36ac3974c5991edb636306e0ad1f7fd,fb2fb8776ef8de78726ef65e7ff62587fda5ec3731b7ed0772cad6bf2bbc6fa8,e318a2475f4a42c0ec021817dec47009b4f057244fb3cff73d573379bb4cc20a,88e12541558e7ce2a14ad6b72f62c6c19ae83c3e18472fcee57b10eaf4159065,bc1c200be6d013def570aefc2bff8bd0fa8b99fd6fc6f47d8f7e989cc6584613,f7d7e2d27606a76853ae52dac93ee47af6d1aa81fcddca3a6471da06e3d9f87c,11e1cdbc4f238838744c900326360aa7965a285af8bed5df3d00f05c8413d415,12715816183eb4ac4cb02b822999bb15362ce4005e32a3bd1e1fb9e5d13cd530,c47dad41ba6077aec198597158dcbc8cc4f11e9295d99e3e4d99074815510639,ec9c7421ad03b20f9e0ca9cd542254f84adb5a1392d10fdf48912f4c1fcb9573,8e1a4375a8bdbc26bf5e389576d703be535388effc0bdd0aa14ed4b25c492adb,0f70b8a9b701574900fb01a5de86aec00d69ef16cb3b6922f7fc506c432b46a8,a308aac03000c3f91aa23e70f2efc39c8c2e5cb615b2d24363c3df7c036c702b,7b12b7adbb82221f22760c807b17cb3bf391664d232e6ed96ed9eef6bde3fff1,15fb88dce887edd4780a9d01b2b9e0b0746b554781e207259a92c9c53742bbad,f4612c785e357587ea31df4c31926428214e4dd03942d067793aaa280e95485a,73c147c14beeeac7623c55e4b5043659ba10e42f9bfc149b9c2fdd2c9c6e80d9,8239ff193c20f435c38ce90a4e46473c86f937da33fc06bc7fe85da185bbe102,65c8766466d42e117da35fc2ab1de5eb848355ba801ac8230775ece033b2d3c8,6dcd06eff5ec2207e7ec9eb5f459218e2695cc29242a9afc1f7468654826c870,fd4a5e19ef24721e100960cfe76e066d5df95174b8961d252584d979d943f10f,72bb64a09dec19c9b88c30793e8d3f5614d134cb186925c9418df7d8b8f0d150,45bedcd79e20b94a518f57b6138b3b680a1e05305730520166482c78b7594603,69a718a6000f8ada7b024a5900e4a636b8891a1b7f0064dc536190fff3295c46,711ebbdde94637a12cd0a78d054aa770986e5264b1c832b4cf5543c3b5fc6508,cd67abce2096614bb5cc40a772c7230f18b1a50179d31c787df73e913a602b91,c452ca29cb63d49064019fea72c79a1e41da556fa97aff5382dc799bbe999831,09117c3b7968f25bde46055670b192cd5f824753088103e4dfa3833c47d7d2c7,9ace4ed3870d60dd554164a841267e757324c9ac9a08351bf008fc3dd8663d32,1e106b5d5182ab7d117b1c4adecf17780246130535e36d2a96f7141cb8d2b56f,8bce41a6d0c51cd93cad679ba0a4197e108348f0ec6021a722dba330cfd0b065,0fd4cd8f563371fd339e412732b7559325a38cc865d20ee612dc6c506096e3f8,63c3c1b5988b66adceed234673d35bfdde28668d4f768415330eb64a21563af5,55038a3b2e47b2015d447f02725b6dcf951fed2648f564dfb1b02e1c8a33f9d6,9a35864e9f7eed736ae32f2e3bb81d9cae1d84a7448f4d2d8de8999455dbdaef,0070720e718a277c965b3c64bd5ed22c7f3ebfc2b60bc40caaa09c91ec63ed1f,eea36ee83298ad886132340fd5612c8f7efdd84b585a0db954c75597bcc2e21f,16d8f11455a5b294cff600e3d7855f65358705e4d40ddb4f1e31b3b2e6dc987c,e767facdab2737c96e8b4f008c83d64f5babc861d19c4bdfad3de1e7f670f878,1c1f4389fad70a9d2ab4aa3120f9ffe3fc42400d9ba5398023520c12ae5ba702,f7e90d496f46be6ee5a30bc69e118c05533f2e1da08356410ac70a0ecb779390,384618d99cfa2cf90db1a382c6764482ee2be4ca787f7839af3c34ab88396534'''.split(','),
-          '13':'''70103cb67afaa91538523fa30d619f691bfbf5572bd9d4a985890c1c5b401800,7490faca3dece848755feb7e15317f3a9bf03354f310d28cf5c381d4b989e10b,e4e32a737a8918191dffd1d246f6d0ce61e737bed395c7ec6419ac31b2fdf200,abe483de1390e82ce545c65257af8329b37a0e90f774e037a29d012c1c1ad3d7,7eb26fda02a26d4fbbfa1e989294fa6b0ceb9a20eb452267c5d1acef84b04941,5a9352081db8cad670c65e1f217f796443b912c7c8be3cb2940781efa847219c,0a6004ec6def06480264819e79d8ba1fc454e695a3d6a7bd85f72d347ff73a44,ed25c3279fe4114d5fa73180c31c2b6632f67fc71ba55bb64fda3730827002c9,ee45218947036b39a8511340c2847363bef81f44890d8e45411eed59eba3a253,d3e46b66c7b809934b73c61893eb97e3e939e6904b3108741718c1cc811d9bb8,e53d96ccf19cc022e1f30f6cf68d5cb0f4362c711cd326ca3f06f2c95695a1df,715adc043bbe5ab3471a4deedbf27e7af43bf34a5b81cf9bf48ded50582d823a,899fdff7091996eddfe979d6a8b3e459e3847d03aac60a273f75cc28e8fa9cf5,c26b96c2b1227bac9224f5cd43ffecbd54fd3f8fcb21952a72f443919b77fb46,d6da483774fa5deb7730728d1141a8740e3642fbaf98d4a17c3fb754f9a00d09,5187811db1185366916e2db3f2f0ac33dde16a8939267a31c8fe8c5ad1eeaf4d,41d6061517a0e52eb18ccfbb879c821a00eb6005d053c5ecc169f064eebb6fb2,254ef47b1bb3e13738b32ceb8a31f9965ba9cf2d44193a18b58b5512c0d5f083,7ec981e055ea55e71bd0c29d5197f41b3e588f90063a56a440852165fe45a2ca,39505b42d5bd6bae7112e0ad2814cc802fd8d09210223a1d10bb8c582c5db8c8,c1f19a339b9ae8e99cbec94083f8f0c841247d57b4677784e6c1f9e129a95a89,a4572b6d3404179fcfa252c1ccd759f2a99453fada5cf6810fad9deda8c409e4,60bbe6e0dc8b5b201dc5d86006315a818e1ba4288168548ad37eb6c7cb3d207f,745015e38fb8b1ba4275e682ce80afc318a089f3189f10791e1f7afcc186c564,426d63e3f915f8eb282a17bf675c70ae0354e19f76dc5661f764a8c014528500,2faf88fa944cbc85eba1f55d94d5f94560622ef2e2caeeadbb2ac3d0993e43e5,7de668c5cdf4d9b181299494254e306983a2dc431254a4f5ca08da8232bb7e92,4f67728dead89c1303c5b181930dedf3270615b233ac7a0a6ba0664ac2fb67cb,9662b7bec7fad3d0be5b7afa424f1cb7dea8a25add4247ed6d47ba3f1ed1f3c1,46286c0de2a965a211a6a7feda6ac0759f8aed398f9fc22ab4be6026acaa6273,aa5ba208a2d4a3ed1e518d6e8ed7907ee51760d55ee79daa2465302cb5077b4a,530fef1b52cf145c91c272114a17f4c6fde59926fda3976c44f1126ca0374fff,8789abeb64431df6828d39b9d67791ee1bc9163e3258830f4edef5d774d1d11e,58887f19fae4b4745ef4b30133760a4aa8a56db80e5c7ddb99489eabe0470591,c3384fad280e274c830c8f20e56f48caa69eba8dadc04ba4fe4a0fce9b7e1b21,85d7abd7d396e8495b5a9ece44415dda958804333fa28eb4ae27fd2f74ad61fc,2ff872ca6953758186c308527a802969f2d977256ba4f86ad7fa39c9b13d5c87,5350c91c8f782b42a1f6bbc5c0078c565cb0a16fadc5003f3a540542f526cbf2,968f81e39c889939c1161ab84140ca88558ece683fae97362482cccaf5d940bc,8d98c4b344a649f6ff9c2883288e1d1b3f4d1701c8dd5eecc08d987f6853a32c,164fe6046737615a35776fe85b9aa6232879a3d35e8b8d386bc1011a269ca907,1619af6d07526c3884f03ce2c12abe1eecd74cc3808ee03d5e88716a00c801d2,e2220ebe89f1f20adf8e615aaafb37c11c0ecf4dd12057716c62b386c73f4e10,71412e3b479ddbc8aea9626e7a655bc41485b4b4999af8b966aeb9376e90070d,b0563ca37f29ab123ae6c10b824896b11aba597051c569661c328fa2d0f22db4,c297ce74a8db6f2357fca46bff7711740dc651814198b36907ca0ccd4593edea,6eb9312ce0166916ac4ab4b5d47c5c6a604d767a0d225c4db9c03d88bf4a912e,9f1327c4ee86f0ead9cef23ee13e1ebb683c0f5645083ac48cd18d2044470db4,556c0e33840a18e28cf834a9e0829c0ee360ad155830587bc6aaad6f33fbfb40,edac259858872a28710b1e90c189d49bc744eff34048b719c18a8ae9e6f7c909,e1201afe225ed4de39dbd24f86321845ce765790b2ae46af22fb3cc2d7f21167,d9e9f342738e5b18b2e4c71ef6992d293cac67ad45b3feaa070e61babf83cc76,4da493e5aca8b38ac3cc2239bf1b9a89f81ea0cd437931404ee5515d2db46b2b,7ece08063dca242302008a4b1bee4f840b29b34ebd75dd12fd1bf6eec30bc735,af1916fd28a2f4cc61bb66e5b6ef89d0cfcc8e1453df6046aaa0fb22c6dc103d,6626f4c63be1fb68042493a1a02d531146f7df8f25b79173c0230787b8b9718c'''.split(','),
-          '14':'''99893c9bb1ac66c2d4faed737c238eae3b2f88688d9056e822fd9c15b2c68acc,fe5d0eb0669c01f1c3de33a6942f66a19bb75ab4e3b272e77239169c892fa8fd,6fe6e9915b0753d562d1647e08946668aca6cce1597f34f4f59df184595580b9,a1505b67f8d32ae4088fa63ae9adbe14e8d17f94b66057c136c119303d3f92e3,3a9eae418c238380f15c46a341c380b25f94d00423c6ba5bcdae14a2a4e8cf67,920b610b30cc46bc3561ee273db6e895a5355425411eefc886c07a8378c33c1f'''.split(',')}
-
-          def repair_one(n, target_len):
-              p=Path(f'v151_lean/chunk_{n}.b64'); s=''.join(p.read_text().split())
-              if sha(s)==expected[n]: return
-              hs=blocks[n]
-              bad=next((k for k,h in enumerate(hs) if sha(s[k*250:min(len(s),(k+1)*250)]) != h),None)
-              if bad is None: raise SystemExit(f'chunk {n}: bloc fautif introuvable')
-              lo=bad*250; hi=min(len(s),lo+250)
-              found=None
-              if len(s)==target_len:
-                  for pos in range(lo,min(hi,len(s))):
-                      orig=s[pos]
-                      for ch in alphabet:
-                          if ch==orig: continue
-                          cand=s[:pos]+ch+s[pos+1:]
-                          if sha(cand)==expected[n]: found=cand; print(f'chunk {n}: {orig}->{ch} @ {pos}'); break
-                      if found: break
-              elif len(s)==target_len-1:
-                  for pos in range(lo,hi+1):
-                      for ch in alphabet:
-                          cand=s[:pos]+ch+s[pos:]
-                          if sha(cand)==expected[n]: found=cand; print(f'chunk {n}: insertion {ch} @ {pos}'); break
-                      if found: break
-              else: raise SystemExit(f'chunk {n}: longueur inattendue {len(s)}')
-              if not found: raise SystemExit(f'chunk {n}: réparation impossible')
-              p.write_text(found)
-
-          repair_one('12',14000); repair_one('13',14000); repair_one('14',1376)
-
-          pieces=[]
+          pieces = []
           for i in range(15):
-              n=f'{i:02d}'; s=''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
-              if sha(s)!=expected[n]: raise SystemExit(f'chunk {n} SHA invalide {sha(s)}')
-              pieces.append(s)
-          raw=base64.b64decode(''.join(pieces),validate=True)
-          got=hashlib.sha256(raw).hexdigest(); want='c3ebb279385ad13d935eef2201a541a64006edfd949bce0b67bc66f0c4768b19'
-          if got!=want: raise SystemExit(f'archive SHA invalide {got}')
+            n = f'{i:02d}'
+            s = ''.join(Path(f'v151_lean/chunk_{n}.b64').read_text().split())
+            got = sha(s)
+            if got != expected[n]:
+              raise SystemExit(f'fragment {n} invalide: {got}')
+            pieces.append(s)
+
+          raw = base64.b64decode(''.join(pieces), validate=True)
+          got = hashlib.sha256(raw).hexdigest()
+          want = 'c3ebb279385ad13d935eef2201a541a64006edfd949bce0b67bc66f0c4768b19'
+          if got != want:
+            raise SystemExit(f'archive V151 invalide: {got}')
           Path('/tmp/V151-lean9.tar.xz').write_bytes(raw)
           print('Source V151 intégralement validée')
           PY
           xz -t /tmp/V151-lean9.tar.xz
           tar -xJf /tmp/V151-lean9.tar.xz -C .
-          grep -n 'versionCode 151\|versionCode = 151' app/build.gradle.kts
-          grep -n '151.0-test' app/build.gradle.kts
+          grep -n 'versionCode = 151' app/build.gradle.kts
+          grep -n 'versionName = "151.0-test"' app/build.gradle.kts
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Make Gradle executable
-        run: chmod +x gradlew
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Ensure Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
 
       - name: Build V151 debug APK
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Prepare APK
         shell: bash
@@ -112,6 +109,7 @@ jobs:
           APK="$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
           test -n "$APK"
           cp "$APK" VSP-GPS-V151-roundabout-test-stop.apk
+          unzip -t VSP-GPS-V151-roundabout-test-stop.apk >/dev/null
           ls -lh VSP-GPS-V151-roundabout-test-stop.apk
 
       - name: Upload V151 APK
