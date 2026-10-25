@@ -1,10 +1,10 @@
-name: Build Android APK V140 signed
+name: Build Android APK V141 full restore
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v140-signed-updates
+      - vsp-v141-full-restore
 
 permissions:
   contents: read
@@ -19,6 +19,12 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v5
+
+      - name: Check restoration package
+        run: test -f VSP-GPS-V141-source-patch.zip || (echo "Missing VSP-GPS-V141-source-patch.zip" && exit 1)
+
+      - name: Restore advanced VSP GPS source
+        run: unzip -o VSP-GPS-V141-source-patch.zip -d .
 
       - name: Check signing secrets
         env:
@@ -37,24 +43,6 @@ jobs:
           printf '%s' "$VSP_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
           echo "VSP_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
           echo "VSP_KEYSTORE_PASSWORD=$VSP_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
-
-      - name: Apply V135 POI patch
-        run: python3 tools/patch_v135.py
-
-      - name: Apply V136 local POI patch
-        run: python3 tools/patch_v136.py
-
-      - name: Apply V137 fast POI patch
-        run: python3 tools/patch_v137.py
-
-      - name: Fix V137 Leclerc regex
-        run: python3 tools/fix_v137_escape.py
-
-      - name: Apply V138 version display
-        run: python3 tools/patch_v138.py
-
-      - name: Apply V140 permanent signing
-        run: python3 tools/patch_v140.py
 
       - name: Install Java 17
         uses: actions/setup-java@v5
@@ -76,7 +64,7 @@ jobs:
             "platforms;android-36" \
             "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS APK
+      - name: Build signed VSP GPS V141 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -87,6 +75,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V140-signed
+          name: VSP-GPS-V141-full-signed
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
