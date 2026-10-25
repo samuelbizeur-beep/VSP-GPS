@@ -38,18 +38,12 @@ jobs:
           PY
           tar -xJf /tmp/v151.tar.xz -C .
 
-      - name: Print exact topology code
+      - name: Print service filter and topology application
         shell: bash
         run: |
           set -euo pipefail
-          echo '--- FILES ---'
-          grep -RIlE '_vsp_roundabout_audit|topologie=|roundabout_exit_count|roundabout.*topolog|roundabout.*audit' app/src/main/java || true
-          echo '--- MATCHES ---'
-          grep -RniE '_vsp_roundabout_audit|topologie=|roundabout_exit_count|ringId|ring_id|parking_aisle|driveway|highway.*service|access.*private|agricultural' app/src/main/java | head -500 || true
-          echo '--- CONTEXT ---'
-          while IFS=: read -r f n rest; do
-            [ -z "$f" ] && continue
-            a=$((n-45)); [ $a -lt 1 ] && a=1; b=$((n+120));
-            echo "===== $f lines $a-$b =====";
-            sed -n "${a},${b}p" "$f";
-          done < <(grep -RniE '_vsp_roundabout_audit|topologie=' app/src/main/java | head -20)
+          F=app/src/main/java/fr/vspgps/app/LocalValhallaRouter.kt
+          echo '===== lines 1060-1215 ====='
+          sed -n '1060,1215p' "$F"
+          echo '===== lines 1216-1345 ====='
+          sed -n '1216,1345p' "$F"
