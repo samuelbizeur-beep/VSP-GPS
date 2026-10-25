@@ -1,10 +1,7 @@
-name: Build Android APK V138 CI
+name: Build Android APK V140 signed
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - vsp-v138-version-display
 
 permissions:
   contents: read
@@ -20,6 +17,24 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v5
 
+      - name: Check signing secrets
+        env:
+          VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
+          VSP_KEYSTORE_PASSWORD: ${{ secrets.VSP_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$VSP_KEYSTORE_B64" || (echo "Missing VSP_KEYSTORE_B64" && exit 1)
+          test -n "$VSP_KEYSTORE_PASSWORD" || (echo "Missing VSP_KEYSTORE_PASSWORD" && exit 1)
+
+      - name: Restore permanent signing key
+        env:
+          VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
+          VSP_KEYSTORE_PASSWORD_SECRET: ${{ secrets.VSP_KEYSTORE_PASSWORD }}
+        run: |
+          KEYSTORE="$RUNNER_TEMP/vsp-gps-update.jks"
+          printf '%s' "$VSP_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          echo "VSP_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "VSP_KEYSTORE_PASSWORD=$VSP_KEYSTORE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+
       - name: Apply V135 POI patch
         run: python3 tools/patch_v135.py
 
@@ -34,6 +49,9 @@ jobs:
 
       - name: Apply V138 version display
         run: python3 tools/patch_v138.py
+
+      - name: Apply V140 permanent signing
+        run: python3 tools/patch_v140.py
 
       - name: Install Java 17
         uses: actions/setup-java@v5
@@ -55,13 +73,17 @@ jobs:
             "platforms;android-36" \
             "build-tools;35.0.0"
 
-      - name: Build VSP GPS APK
+      - name: Build signed VSP GPS APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
+      - name: Verify APK certificate
+        run: |
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
+
       - name: Save APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V138-debug
+          name: VSP-GPS-V140-signed
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
