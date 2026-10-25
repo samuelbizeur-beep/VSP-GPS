@@ -1,10 +1,10 @@
-name: Build Android APK V146 hybrid IGN OSM validation
+name: Build Android APK V147 roundabout pair sync
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v146-roundabout-physical-exits
+      - vsp-v147-roundabout-pair-sync
 
 permissions:
   contents: read
@@ -41,6 +41,9 @@ jobs:
       - name: Apply V146 hybrid OSM and IGN validation patch
         run: python3 tools/patch_v146_roundabout_physical_exits.py
 
+      - name: Apply V147 roundabout enter/exit synchronization patch
+        run: python3 tools/patch_v147_roundabout_pair_sync.py
+
       - name: Check signing secrets
         env:
           VSP_KEYSTORE_B64: ${{ secrets.VSP_KEYSTORE_B64 }}
@@ -76,7 +79,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V146 APK
+      - name: Build signed VSP GPS V147 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -87,6 +90,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V146-hybrid-ign-osm
+          name: VSP-GPS-V147-roundabout-pair-sync
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
