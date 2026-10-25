@@ -1,10 +1,10 @@
-name: Build Android APK V143 safe comparison
+name: Build Android APK V144 roundabout service exits
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - vsp-v143-safe-comparison
+      - vsp-v144-roundabout-service-exits
 
 permissions:
   contents: read
@@ -31,6 +31,9 @@ jobs:
 
       - name: Apply V143 safe comparison patch
         run: python3 tools/patch_v143_safe_comparison.py
+
+      - name: Apply V144 roundabout service exit patch
+        run: python3 tools/patch_v144_roundabout_service_exits.py
 
       - name: Check signing secrets
         env:
@@ -67,7 +70,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build signed VSP GPS V143 APK
+      - name: Build signed VSP GPS V144 APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Verify APK certificate
@@ -78,6 +81,6 @@ jobs:
       - name: Save APK
         uses: actions/upload-artifact@v4
         with:
-          name: VSP-GPS-V143-safe-comparison
+          name: VSP-GPS-V144-roundabout-service-exits
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
